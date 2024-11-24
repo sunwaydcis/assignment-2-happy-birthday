@@ -1,4 +1,9 @@
-module Main where
+--Question 1
 
-main :: IO ()
-main = putStrLn "Hello, Haskell!"
+--Question 2
+
+--Question 3
+
+
+
+
