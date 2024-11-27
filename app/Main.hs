@@ -5,7 +5,7 @@ import Data.Monoid
 import Data.Maybe (mapMaybe)
 import Text.Printf (printf)
 import Data.Ratio
-import Text.Read (readMaybe)
+import Text.Read (reads)
 
 
 -- Define HospitalRecord data type
@@ -27,55 +27,59 @@ data HospitalRecord = HospitalRecord
     } deriving Show
 
 
--- Helper function to safely read Int values
-readInt :: String -> Maybe Int
-readInt = readMaybe
+-- Function to find the index of a keyword in the header by assigning field name with idx and use lookup function
+findHeader :: String -> [String] -> Maybe Int
+findHeader keyword headers = lookup keyword (zip headers [0..])
 
 
--- Function to find the index of a keyword in the header
-findHeaderIndex :: String -> [String] -> Maybe Int
-findHeaderIndex keyword headers = lookup keyword (zip headers [0..])
-
-
--- Parse a single CSV row into HospitalRecord
+-- Parse a single data row into HospitalRecord
+{-
+REFERENCE:
+1. https://downloads.haskell.org/~ghc/6.6.1/docs/html/libraries/base/Text-Read.html
+2. http://www.zvon.org/other/haskell/Outputprelude/ReadS_d.html
+-}
 parseCSVLine :: [String] -> String -> Either String HospitalRecord
 parseCSVLine headers line =
     let fields = splitOn "," line
         lookupField :: String -> Either String String
         lookupField fieldName =
-            case findHeaderIndex fieldName headers of
-                Just idx -> if idx < length fields
-                            then Right (fields !! idx)
-                            else Left $ "Field " ++ fieldName ++ " not found in row"
+            case findHeader fieldName headers of
+                Just idx
+                        | idx < length fields -> Right (fields !! idx)
+                        | otherwise -> Left $ "Field " ++ fieldName ++ " not found in row"
                 Nothing -> Left $ "Field " ++ fieldName ++ " not found in header"
-    in do
-        dateVal          <- lookupField "date"
-        stateVal         <- lookupField "state"
-        totalBedsVal     <- lookupField "beds" >>= readIntEither
-        covidBedsVal     <- lookupField "beds_covid" >>= readIntEither
-        noncritBedsVal   <- lookupField "beds_noncrit" >>= readIntEither
-        admittedPUIVal   <- lookupField "admitted_pui" >>= readIntEither
-        admittedCOVIDVal <- lookupField "admitted_covid" >>= readIntEither
-        admittedTotalVal <- lookupField "admitted_total" >>= readIntEither
-        dischargedPUIVal <- lookupField "discharged_pui" >>= readIntEither
-        dischargedCOVIDVal <- lookupField "discharged_covid" >>= readIntEither
-        dischargedTotalVal <- lookupField "discharged_total" >>= readIntEither
-        hospitalCOVIDVal <- lookupField "hosp_covid" >>= readIntEither
-        hospitalPUIVal   <- lookupField "hosp_pui" >>= readIntEither
-        hospitalNonCOVIDVal <- lookupField "hosp_noncovid" >>= readIntEither
-        Right $ HospitalRecord dateVal stateVal totalBedsVal covidBedsVal noncritBedsVal
-                admittedPUIVal admittedCOVIDVal admittedTotalVal dischargedPUIVal dischargedCOVIDVal
-                dischargedTotalVal hospitalCOVIDVal hospitalPUIVal hospitalNonCOVIDVal
-  where
-    readIntEither :: String -> Either String Int
-    readIntEither str = maybe (Left $ "Invalid integer: " ++ str) Right (readInt str)
+  
+        --To check whether string is able to convert into integer by using reads as return a list of possible values in tuple
+        readInt str = 
+            case reads str :: [(Int, String)] of
+                [(n, "")] -> Right n 
+                _         -> Left $ "Fail to convert into integer: " ++ str 
+
+        --Function to match the field and parse into hospital record
+        lookupAndParse fieldName = lookupField fieldName >>= readInt
+
+        parseRecord = HospitalRecord <$> lookupField "date"
+            <*> lookupField "state"
+            <*> lookupAndParse "beds"
+            <*> lookupAndParse "beds_covid"
+            <*> lookupAndParse "beds_noncrit"
+            <*> lookupAndParse "admitted_pui"
+            <*> lookupAndParse "admitted_covid"
+            <*> lookupAndParse "admitted_total"
+            <*> lookupAndParse "discharged_pui"
+            <*> lookupAndParse "discharged_covid"
+            <*> lookupAndParse "discharged_total"
+            <*> lookupAndParse "hosp_covid"
+            <*> lookupAndParse "hosp_pui"
+            <*> lookupAndParse "hosp_noncovid"
+    in parseRecord
 
 
--- Read and parse CSV file into HospitalRecords
+-- Read and parse dataset into HospitalRecords
 readCSV :: FilePath -> IO [HospitalRecord]
 readCSV filePath = do
     content <- lines <$> readFile filePath
-    let (header:rows) = content  -- First row is the header
+    let (header:rows) = content
         headers = splitOn "," header
     return $ mapMaybe (parseLine headers) rows
   where
@@ -85,6 +89,14 @@ readCSV filePath = do
 
 
 -- Group records by state
+{-
+REFERENCE:
+1. https://hackage.haskell.org/package/groupBy-0.1.0.0/docs/Data-List-GroupBy.html
+2. http://www.zvon.org/other/haskell/Outputlist/groupBy_f.html
+3. https://hackage.haskell.org/package/base-4.20.0.1/docs/Data-Ratio.html
+4. https://stackoverflow.com/questions/44832978/haskell-maximumby-for-ord-instances
+5. 
+-}
 groupState :: [HospitalRecord] -> [[HospitalRecord]]
 groupState records =
     let sortedRecords = sortBy (compare `on` state) records
@@ -123,13 +135,7 @@ averageAdmissions records =
 -- Main function
 main :: IO ()
 main = do
-    -- readCSV "C:/Users/sumho/haskelprojectG1/Assignment2/app/hospital.csv"  >>= \records ->
 
-    --Q1 
-    -- putStrLn "\nQuestion 1: which state has the highest total of hospital bed"
-    -- (case maxBedsOfState records of
-    --     Just state -> putStrLn "\nState with maximum beds: \n" ++ state
-    --     Nothing -> putStrLn "Could not find the state")
     let filePath = "C:/Users/sumho/haskelprojectG1/Assignment2/app/hospital.csv"
     records <- readCSV filePath
 
@@ -138,12 +144,17 @@ main = do
     putStrLn $ "State with the highest total beds: " ++ maxBeds
 
     -- Question 2
+    {-
+    REFERENCE: 
+    1. https://stackoverflow.com/questions/58242024/haskell-how-to-convert-from-ratio-integer-to-ratio-rational
+    2. https://www.haskell.org/onlinereport/haskell2010/haskellch22.html
+    -}
     let ratio = covidToTotalRatio records
     putStrLn $ "Ratio: " ++ show (numerator ratio) ++ ":" ++ show (denominator ratio)
     printf "Ratio in decimal: %.2f\n" (fromRational (toRational ratio) :: Double)
 
     -- Question 3
     let averages = averageAdmissions records
-    putStrLn "Average admissions by state (PUI, COVID, Total):"
+    putStrLn "Average admissions by state (Admitted PUI and Admitted COVID):"
     mapM_ (\(stateName, (avgPUI, avgCOVID)) ->
         putStrLn $ stateName ++ ": PUI=" ++ printf "%.2f" avgPUI ++ ", COVID=" ++ printf "%.2f" avgCOVID) averages
