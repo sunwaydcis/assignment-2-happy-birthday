@@ -38,6 +38,7 @@ findHeader keyword headers = lookup keyword (zip headers [0..])
 
 
 -- Parse a single data row into HospitalRecord
+-- Extracts values based on the headers and convert string into numbers
 {- 
 REFERENCE:
 1. (Reads): https://downloads.haskell.org/~ghc/6.6.1/docs/html/libraries/base/Text-Read.html
@@ -84,8 +85,8 @@ parseCSVLine headers line =
 readCSV :: FilePath -> IO [HospitalRecord]
 readCSV filePath = do
     content <- lines <$> readFile filePath
-    let (header:rows) = content
-        headers = splitOn "," header
+    let (header:rows) = content         -- sperate header from data rows
+        headers = splitOn "," header    --split header into field names
     return $ mapMaybe (parseLine headers) rows
   where
     parseLine headers line = case parseCSVLine headers line of
@@ -109,6 +110,7 @@ groupState records =
 
 
 -- Question 1: Find the state with the highest total beds
+--
 maxBedsOfState :: [HospitalRecord] -> String
 maxBedsOfState records =
     let maxBed = maximumBy (compare `on` totalBeds) records
@@ -116,6 +118,7 @@ maxBedsOfState records =
 
 
 -- Question 2: Calculate the ratio of COVID beds to total beds
+--
 covidToTotalRatio :: [HospitalRecord] -> Ratio Int
 covidToTotalRatio records =
     let totalCovidBeds = sum (map covidBeds records)
@@ -124,6 +127,7 @@ covidToTotalRatio records =
    
 
 -- Question 3: Calculate averages of admissions by state
+-- group the records by state and calculate average for eaach state group
 averageAdmissions :: [HospitalRecord] -> [(String, (Double, Double))]
 averageAdmissions records =
     let groupedRecords = groupState records
@@ -140,7 +144,7 @@ averageAdmissions records =
 -- Main function
 main :: IO ()
 main =
-    readCSV "C:/Users/sumho/haskelprojectG1/Assignment2/app/hospital.csv" >>= \records ->
+     readCSV "C:/Users/User/Downloads/hospital (1).csv" >>= \records ->
 
         --Question 1
         putStrLn ("Question 1:\n" <> "State with the highest total of beds: " <> maxBedsOfState records) >>
