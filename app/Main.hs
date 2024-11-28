@@ -80,7 +80,11 @@ parseCSVLine headers line =
             <*> lookupAndParse "hosp_noncovid"
     in parseRecord
 
-
+{-
+REFERENCES
+1. (mapMaybe): http://www.zvon.org/other/haskell/Outputmaybe/mapMaybe_f.html
+2. (splitOn): https://hackage.haskell.org/package/text-2.1.2/docs/Data-Text.html#v:splitOn
+-}
 -- Read and parse dataset into HospitalRecords
 readCSV :: FilePath -> IO [HospitalRecord]
 readCSV filePath = do
@@ -101,7 +105,7 @@ REFERENCE:
 2. (GroupBy): http://www.zvon.org/other/haskell/Outputlist/groupBy_f.html
 3. (Ratio): https://hackage.haskell.org/package/base-4.20.0.1/docs/Data-Ratio.html
 4. (MaximumBy): https://stackoverflow.com/questions/44832978/haskell-maximumby-for-ord-instances
-5. 
+5. (`on`): https://stackoverflow.com/questions/45261292/understanding-data-function-on-type-signature 
 -}
 groupState :: [HospitalRecord] -> [[HospitalRecord]]
 groupState records =
@@ -140,7 +144,11 @@ averageAdmissions records =
             avgCOVID = fromIntegral (sum (map admittedCOVID group)) / fromIntegral totalRecords
         in (stateName, (avgPUI, avgCOVID))
 
+{-REFERENCES:
+1.(printf): https://stackoverflow.com/questions/7828072/how-does-haskell-printf-work 
+2.
 
+-}
 -- Main function
 main :: IO ()
 main =
