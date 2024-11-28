@@ -27,16 +27,21 @@ data HospitalRecord = HospitalRecord
     } deriving Show
 
 
--- Function to find the index of a keyword in the header by assigning field name with idx and use lookup function
+-- Function to find the index of a keyword in the header by using zip to assign field name with idx and use lookup function
+{-
+Reference 
+1. (lookup): https://zvon.org/other/haskell/Outputprelude/lookup_f.html
+2. (zip): http://www.zvon.org/other/haskell/Outputprelude/zip_f.html
+-}
 findHeader :: String -> [String] -> Maybe Int
 findHeader keyword headers = lookup keyword (zip headers [0..])
 
 
 -- Parse a single data row into HospitalRecord
-{-
+{- 
 REFERENCE:
-1. https://downloads.haskell.org/~ghc/6.6.1/docs/html/libraries/base/Text-Read.html
-2. http://www.zvon.org/other/haskell/Outputprelude/ReadS_d.html
+1. (Reads): https://downloads.haskell.org/~ghc/6.6.1/docs/html/libraries/base/Text-Read.html
+2. (Reads): http://www.zvon.org/other/haskell/Outputprelude/ReadS_d.html
 -}
 parseCSVLine :: [String] -> String -> Either String HospitalRecord
 parseCSVLine headers line =
@@ -91,10 +96,10 @@ readCSV filePath = do
 -- Group records by state
 {-
 REFERENCE:
-1. https://hackage.haskell.org/package/groupBy-0.1.0.0/docs/Data-List-GroupBy.html
-2. http://www.zvon.org/other/haskell/Outputlist/groupBy_f.html
-3. https://hackage.haskell.org/package/base-4.20.0.1/docs/Data-Ratio.html
-4. https://stackoverflow.com/questions/44832978/haskell-maximumby-for-ord-instances
+1. (GroupBy): https://hackage.haskell.org/package/groupBy-0.1.0.0/docs/Data-List-GroupBy.html
+2. (GroupBy): http://www.zvon.org/other/haskell/Outputlist/groupBy_f.html
+3. (Ratio): https://hackage.haskell.org/package/base-4.20.0.1/docs/Data-Ratio.html
+4. (MaximumBy): https://stackoverflow.com/questions/44832978/haskell-maximumby-for-ord-instances
 5. 
 -}
 groupState :: [HospitalRecord] -> [[HospitalRecord]]
@@ -134,27 +139,32 @@ averageAdmissions records =
 
 -- Main function
 main :: IO ()
-main = do
+main =
+    readCSV "C:/Users/sumho/haskelprojectG1/Assignment2/app/hospital.csv" >>= \records ->
 
-    let filePath = "C:/Users/sumho/haskelprojectG1/Assignment2/app/hospital.csv"
-    records <- readCSV filePath
+        --Question 1
+        putStrLn ("Question 1:\n" <> "State with the highest total of beds: " <> maxBedsOfState records) >>
 
-    -- Question 1
-    let maxBeds = maxBedsOfState records
-    putStrLn $ "State with the highest total beds: " ++ maxBeds
+        --Question 2
+        putStrLn ("\nQuestion 2:\n" <> "Ratio (COVID beds : Total beds): " <>
+            show (numerator (covidToTotalRatio records)) <> ":" <>
+            show (denominator (covidToTotalRatio records))) >>
+        printf "Ratio in decimal: %.2f\n"
+            (fromRational (toRational (covidToTotalRatio records)) :: Double) >>
 
-    -- Question 2
-    {-
-    REFERENCE: 
-    1. https://stackoverflow.com/questions/58242024/haskell-how-to-convert-from-ratio-integer-to-ratio-rational
-    2. https://www.haskell.org/onlinereport/haskell2010/haskellch22.html
-    -}
-    let ratio = covidToTotalRatio records
-    putStrLn $ "Ratio: " ++ show (numerator ratio) ++ ":" ++ show (denominator ratio)
-    printf "Ratio in decimal: %.2f\n" (fromRational (toRational ratio) :: Double)
-
-    -- Question 3
-    let averages = averageAdmissions records
-    putStrLn "Average admissions by state (Admitted PUI and Admitted COVID):"
-    mapM_ (\(stateName, (avgPUI, avgCOVID)) ->
-        putStrLn $ stateName ++ ": PUI=" ++ printf "%.2f" avgPUI ++ ", COVID=" ++ printf "%.2f" avgCOVID) averages
+        -- Question 3 
+        {-
+        REFERENCE:
+        1. (Tail Recursion): https://www.programmerinterview.com/recursion/tail-recursion/
+        -}
+        putStrLn "\nQuestion 3: Average admissions by state (PUI, COVID):" >>
+        printAverageAdmissions (averageAdmissions records)
+        where
+            -- Recursive function to print each state's average admissions
+            printAverageAdmissions :: [(String, (Double, Double))] -> IO ()
+            printAverageAdmissions [] = return ()  -- Base case: no more records to print
+            printAverageAdmissions ((stateName, (avgPUI, avgCOVID)):xs) =
+                putStr stateName >>
+                putStr ": PUI = " >> printf "%.2f" avgPUI >>
+                putStr ", COVID = " >> printf "%.2f\n" avgCOVID >>
+                printAverageAdmissions xs
